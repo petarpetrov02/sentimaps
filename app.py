@@ -218,6 +218,69 @@ def preprocess_text(text):
 def generate_ngrams(words, n):
     return [' '.join(words[i:i+n]) for i in range(len(words)-n+1)]
 
+def detect_sentiment_score_source(text):
+    if not text or len(text.strip()) < 3:
+        return 'Neutral', 0.0, 'Empty'
+    text_clean = re.sub(r"\bnot (\w+)", r"not_\\1", text.lower())
+    vader_score = sid.polarity_scores(text_clean)
+    compound = vader_score['compound']
+    source = "VADER"
+    if compound >= 0.5:
+        sentiment = 'Very Positive'
+    elif 0.2 <= compound < 0.5:
+        sentiment = 'Positive'
+    elif -0.2 < compound < 0.2:
+        blob_polarity = TextBlob(text).sentiment.polarity
+        source = "TextBlob"
+        if blob_polarity > 0.3:
+            sentiment = 'Positive'
+        elif blob_polarity < -0.3:
+            sentiment = 'Negative'
+        else:
+            sentiment = 'Neutral'
+    elif -0.5 <= compound <= -0.2:
+        sentiment = 'Negative'
+    else:
+        sentiment = 'Very Negative'
+    return sentiment, round(compound, 3), source
+
+
+def detect_emotion_with_trigger(text):
+    text = text.lower()
+    words = nltk.word_tokenize(text)
+    lemmatised_text = set([lemmatizer.lemmatize(w) for w in words])
+
+    emotion_keywords = {
+        'Happy': ['happy', 'pleased', 'joyful', 'satisfied', 'smiling', 'grateful',
+                  'delight', 'cheerful', 'content', 'glad', 'joy', 'wonderful',
+                  'pleasure', 'brightened my day', 'uplifted', 'charming', 'positive experience'],
+        'Angry': ['angry', 'furious', 'outraged', 'enraged', 'livid', 'hostile',
+                  'irritated', 'rude', 'argument', 'aggressive', 'tension', 'mad'],
+        'Frustrated': ['frustrated', 'annoyed', 'disappointed', 'irritated', 'let down',
+                       'helpless', 'misunderstood', 'stressful', 'confused', 'complicated',
+                       'nobody listened', 'nobody helped', 'no support', 'clueless staff'],
+        'Excited': ['excited', 'thrilled', 'amazing', 'exhilarated', 'pumped', 'energetic',
+                    'enthusiastic', 'can’t wait', 'fantastic', 'buzzing', 'euphoric',
+                    'excitement', 'impressive'],
+        'Disappointed': ['disappointed', 'underwhelmed', 'not as expected', 'let down',
+                         'unsatisfied', 'lacklustre', 'not worth it', 'waste', 'regret', 'unimpressed'],
+        'Grateful': ['thankful', 'grateful', 'appreciate', 'gratitude', 'thank you',
+                     'so kind', 'much appreciated', 'heartfelt', 'touched', 'great service'],
+        'Embarrassed': ['awkward', 'embarrassed', 'ashamed', 'uncomfortable', 'felt judged',
+                        'put on the spot', 'humiliating', 'cringe', 'not professional'],
+        'Surprised': ['surprised', 'unexpected', 'shocked', 'stunned', 'caught off guard',
+                      'astonished', 'didn’t expect', 'unexpectedly good', 'wasn’t prepared'],
+        'Afraid': ['afraid', 'scared', 'fearful', 'intimidated', 'unsafe',
+                   'threatened', 'worried', 'nervous', 'anxious', 'panic']
+    }
+
+    for emotion, keywords in emotion_keywords.items():
+        match = [kw for kw in keywords if kw in lemmatised_text]
+        if match:
+            return emotion, ", ".join(match)
+    return 'Neutral', ''
+
+
 # === Streamlit App UI ===
 st.title("Review Classifier with Sentiment, Emotion & Keyword Report")
 
@@ -250,7 +313,8 @@ if uploaded_file:
 
         df['Category'] = df['Review'].apply(classify_category)
         df['Sentiment'] = df['Review'].apply(detect_sentiment)
-        df['Emotion'] = df['Review'].apply(detect_emotion)
+        df['Sentiment'], df['Sentiment Score'], df['Sentiment Source'] = zip(*df['Review'].map(detect_sentiment_score_source))
+        df['Emotion'], df['Emotion Trigger'] = zip(*df['Review'].map(detect_emotion_with_trigger))
         df['Justification'] = df.apply(generate_justification, axis=1)
 
         st.success("Analysis Complete!")
@@ -280,3 +344,6 @@ if uploaded_file:
 
         keyword_csv = df_keywords.to_csv(index=False).encode('utf-8')
         st.download_button("Download Keyword Report", keyword_csv, "keyword_frequency_report.csv", "text/csv")
+
+
+
