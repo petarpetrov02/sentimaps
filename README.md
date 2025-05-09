@@ -26,3 +26,10 @@
 ```bash
 git clone https://github.com/petarpetrov02/sentimaps.git
 cd sentimaps
+
+### ⚡ How to Preview the Demo App
+
+1. **Follow the link below**
+
+Check out [Sentimaps Streamlit app](https://sentimaps-petarpetrov.streamlit.app/) for yourself and give it a try.
+
