@@ -26,6 +26,7 @@
 ```bash
 git clone https://github.com/petarpetrov02/sentimaps.git
 cd sentimaps
+```
 
 ### ⚡ How to Preview the Demo App
 
